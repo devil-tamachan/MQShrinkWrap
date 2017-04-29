@@ -11,9 +11,9 @@
    - カメラ方向のみ移動
  
  ## 使い方
-  - 移動した頂点を選択します
-  - メニュー/選択部処理/ShrinkWrap
-  - 吸着先のオブジェクト、吸着モードを選んでOK押す
+  - 移動した頂点を選択します
+  - メニュー -> 選択部処理 -> ShrinkWrap
+  - 吸着先のオブジェクト、吸着モードを選んでOK押す
 
 ## ダウンロード (64ビット版のみ）
  - https://github.com/devil-tamachan/MQShrinkWrap/releases

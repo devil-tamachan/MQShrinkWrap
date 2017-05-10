@@ -32,3 +32,6 @@
  - Boostインストール
  - ATLが無い場合は手に入れる。たしかPSDKかなんかで手に入るはず。手に入らない場合はA2Wを適当に書き換えてください
  - コンパイル
+
+## メタセコイア４ プラグインリンク集
+ - https://docs.google.com/spreadsheets/d/1HNXBzK-aAXoJ_Dp4ijxiaHkrvYuYB7sx4kyf-tdV0Hk/edit#gid=0

@@ -1,0 +1,2 @@
+GPLv3とNew BSD Licenseのデュアルライセンス
+詳しくはlicense.gpl.txt, license.3bsd.txt参照

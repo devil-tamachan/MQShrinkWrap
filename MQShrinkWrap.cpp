@@ -8,33 +8,17 @@
 #include "MQPlugin.h"
 #include "MQWidget.h"
 
+#include <shlwapi.h>
+
 BOOL ShrinkWrap(MQDocument doc);
+
+#include <boost/filesystem.hpp>
 
 
 #include <iostream>
 #include <list>
 
-#include <CGAL/Simple_cartesian.h>
-#include <CGAL/AABB_tree.h>
-#include <CGAL/AABB_traits.h>
-#include <CGAL/AABB_triangle_primitive.h>
-
-typedef CGAL::Simple_cartesian<double> K;
-
-typedef K::FT FT;
-typedef K::Ray_3 Ray;
-typedef K::Line_3 Line;
-typedef K::Point_3 Point;
-typedef K::Triangle_3 Triangle;
-typedef K::Direction_3 Direction;
-typedef K::Vector_3 Vector3;
-
-typedef std::list<Triangle>::iterator Iterator;
-typedef CGAL::AABB_triangle_primitive<K, Iterator> Primitive;
-typedef CGAL::AABB_traits<K, Primitive> AABB_triangle_traits;
-typedef CGAL::AABB_tree<AABB_triangle_traits> Tree;
-typedef boost::optional<Tree::Intersection_and_primitive_id<Ray>::Type> Ray_intersection;
-
+#include "RunCmd.h"
 
 //---------------------------------------------------------------------------
 //  DllMain
@@ -109,27 +93,38 @@ MQPLUGIN_EXPORT BOOL MQModifySelect(int index, MQDocument doc)
 }
 
 
-#include <atlconv.h>
 
 class ShrinkDialog : public MQDialog
 {
 public:
-	ShrinkDialog(MQWindowBase& parent);
-	~ShrinkDialog();
+  ShrinkDialog(MQWindowBase& parent);
+  ~ShrinkDialog();
+
+  BOOL uiChanged(MQWidgetBase *sender, MQDocument doc)
+  {
+    UpdateEnable(doc);
+    return FALSE;
+  }
+  
+  void UpdateEnable(MQDocument doc)
+  {
+    MakeObjList(doc);
+  }
 
   void MakeObjList(MQDocument doc)
   {
-    USES_CONVERSION;//For A2W
+    bool bVisibleObjOnly = check_visibleObjOnly->GetChecked();
+    
+    combo_guideobj->ClearItems();
     m_objIdx.clear();
     int numObj = doc->GetObjectCount();
     for(int i=0;i<numObj;i++)
     {
       MQObject o = doc->GetObject(i);
       if(o==NULL)continue;
+      if(bVisibleObjOnly && o->GetVisible()==0)continue;
       m_objIdx.push_back(i);
-      std::string name = o->GetName();
-      std::wstring wname(A2W(name.c_str()));
-      combo_guideobj->AddItem(wname);
+      combo_guideobj->AddItem(o->GetNameW());
     }
   }
 
@@ -140,25 +135,31 @@ public:
     return -1;
   }
 
-	MQComboBox *combo_guideobj;
+  MQComboBox *combo_guideobj;
   std::vector<int> m_objIdx;
-	MQComboBox *combo_mode;
+  MQComboBox *combo_mode;
+  MQCheckBox *check_visibleObjOnly;
 };
 
 ShrinkDialog::ShrinkDialog(MQWindowBase& parent) : MQDialog(parent)
 {
-	SetTitle(L"ShrinkWrap");
+  SetTitle(L"ShrinkWrap");
 
-	MQFrame *mainFrame = CreateHorizontalFrame(this);
+  MQFrame *mainFrame = CreateHorizontalFrame(this);
 
-	MQFrame *paramFrame = CreateHorizontalFrame(mainFrame);
-	paramFrame->SetMatrixColumn(2);
-	
-	CreateLabel(paramFrame, L"吸着先");
-	combo_guideobj = CreateComboBox(paramFrame);
-	
-	CreateLabel(paramFrame, L"モード");
-	combo_mode = CreateComboBox(paramFrame);
+  MQFrame *paramFrame = CreateHorizontalFrame(mainFrame);
+  paramFrame->SetMatrixColumn(2);
+
+  CreateLabel(paramFrame, L"吸着先");
+  combo_guideobj = CreateComboBox(paramFrame);
+
+  CreateLabel(paramFrame, L"\"吸着先オブジェクト\"から非表示オブジェを除く");
+  check_visibleObjOnly = CreateCheckBox(paramFrame);
+  check_visibleObjOnly->SetChecked(true);
+  check_visibleObjOnly->AddChangedEvent(this, &ShrinkDialog::uiChanged);
+
+  CreateLabel(paramFrame, L"モード");
+  combo_mode = CreateComboBox(paramFrame);
   combo_mode->AddItem(L"最短面上に吸着");
   combo_mode->AddItem(L"X軸のみ可変");
   combo_mode->AddItem(L"Y軸のみ可変");
@@ -166,24 +167,35 @@ ShrinkDialog::ShrinkDialog(MQWindowBase& parent) : MQDialog(parent)
   combo_mode->AddItem(L"カメラ方向のみ可変");
   combo_mode->SetCurrentIndex(0);
 
-	MQFrame *sideFrame = CreateVerticalFrame(mainFrame);
+  MQFrame *sideFrame = CreateVerticalFrame(mainFrame);
 
-	MQButton *okbtn = CreateButton(sideFrame, L"OK");
-	okbtn->SetDefault(true);
-	okbtn->SetModalResult(MQDialog::DIALOG_OK);
+  MQButton *okbtn = CreateButton(sideFrame, L"OK");
+  okbtn->SetDefault(true);
+  okbtn->SetModalResult(MQDialog::DIALOG_OK);
 
-	MQButton *cancelbtn = CreateButton(sideFrame, L"Cancel");
-	cancelbtn->SetCancel(true);
-	cancelbtn->SetModalResult(MQDialog::DIALOG_CANCEL);
+  MQButton *cancelbtn = CreateButton(sideFrame, L"Cancel");
+  cancelbtn->SetCancel(true);
+  cancelbtn->SetModalResult(MQDialog::DIALOG_CANCEL);
 }
 
 ShrinkDialog::~ShrinkDialog()
 {
 }
 
-void AABB_AddMQObj(std::list<Triangle> &triangles, MQDocument doc, MQObject o)
+
+bool _WriteAABB_ByMQObject(MQDocument doc, MQObject o, FILE *fp)
 {
-  if(o==NULL)return;
+  if(fputc('A', fp)==EOF)return false;
+  if(fputc('A', fp)==EOF)return false;
+  if(fputc('B', fp)==EOF)return false;
+  if(fputc('B', fp)==EOF)return false;
+  if(fputc('T', fp)==EOF)return false;
+  if(fputc(0x0, fp)==EOF)return false;
+  if(fputc(0x0, fp)==EOF)return false;
+  
+  float x,y,z;
+  
+  if(o==NULL)return false;
   int numV = o->GetVertexCount();
   int numF = o->GetFaceCount();
   for(int k=0;k<numF;k++)
@@ -212,201 +224,239 @@ void AABB_AddMQObj(std::list<Triangle> &triangles, MQDocument doc, MQObject o)
     for(int m=0;m<numTri;m++)
     {
       MQPoint p;
-      p = o->GetVertex(index[indices[m*3+0]]);
-      Point a(p.x, p.y, p.z);
-      p = o->GetVertex(index[indices[m*3+1]]);
-      Point b(p.x, p.y, p.z);
-      p = o->GetVertex(index[indices[m*3+2]]);
-      Point c(p.x, p.y, p.z);
-      
-      triangles.push_back(Triangle(a,b,c));
+      int m3 = m*3;
+      for(int n=0;n<3;n++)
+      {
+        p = o->GetVertex(index[indices[m3+n]]);
+        x = p.x;
+        y = p.y;
+        z = p.z;
+        if(fwrite(&x, sizeof(float), 1, fp)!=1)return false;
+        if(fwrite(&y, sizeof(float), 1, fp)!=1)return false;
+        if(fwrite(&z, sizeof(float), 1, fp)!=1)return false;
+      }
     }
   }
+  return true;
+}
+bool WriteAABB_ByMQObject(MQDocument doc, MQObject o, const char *path)
+{
+  FILE *fp = fopen(path, "wb");
+  if(fp==NULL)return false;
+  bool bRet = _WriteAABB_ByMQObject(doc, o, fp);
+  fclose(fp);
+  return bRet;
+}
+bool WriteAABB_ByMQObject(MQDocument doc, MQObject o, const wchar_t *path)
+{
+  FILE *fp = _wfopen(path, L"wb");
+  if(fp==NULL)return false;
+  bool bRet = _WriteAABB_ByMQObject(doc, o, fp);
+  fclose(fp);
+  return bRet;
 }
 
-void MoveClosestPoint(Tree &tree, MQDocument doc, int ignoreObjIdx = -1)
+bool _WriteMoveVertex_SelectedVertex(MQDocument doc, FILE *fp, int ignoreObjIdx = -1)
 {
-  for(int i=0;i<doc->GetObjectCount();i++)
+  if(fputc('A', fp)==EOF)return false;
+  if(fputc('A', fp)==EOF)return false;
+  if(fputc('B', fp)==EOF)return false;
+  if(fputc('B', fp)==EOF)return false;
+  if(fputc('V', fp)==EOF)return false;
+  if(fputc(0x0, fp)==EOF)return false;
+  if(fputc(0x0, fp)==EOF)return false;
+  
+  float x, y, z;
+  for(int oi=0;oi<doc->GetObjectCount();oi++)
   {
-    MQObject o = doc->GetObject(i);
+    MQObject o = doc->GetObject(oi);
     if(o==NULL)continue;
     if(o->GetVisible()==0)continue;
     if(o->GetLocking()==1)continue;
-    if(i==ignoreObjIdx)continue;
+    if(oi==ignoreObjIdx)continue;
     
     int numV = o->GetVertexCount();
-    for(int j=0;j<numV;j++)
+    for(int vi=0;vi<numV;vi++)
     {
-      if(doc->IsSelectVertex(i, j)==FALSE)continue;
+      if(doc->IsSelectVertex(oi, vi)==FALSE)continue;
       
-      MQPoint mp_query = o->GetVertex(j);
-      Point p_query(mp_query.x, mp_query.y, mp_query.z);
-      Point closest_point = tree.closest_point(p_query);
-      mp_query.x = closest_point[0];
-      mp_query.y = closest_point[1];
-      mp_query.z = closest_point[2];
-      o->SetVertex(j, mp_query);
+      MQPoint mp_query = o->GetVertex(vi);
+      x = mp_query.x;
+      y = mp_query.y;
+      z = mp_query.z;
+      
+      if(fwrite(&oi, sizeof(int), 1, fp)!=1)return false;
+      if(fwrite(&vi, sizeof(int), 1, fp)!=1)return false;
+      if(fwrite(&x, sizeof(float), 1, fp)!=1)return false;
+      if(fwrite(&y, sizeof(float), 1, fp)!=1)return false;
+      if(fwrite(&z, sizeof(float), 1, fp)!=1)return false;
     }
   }
+  return true;
+}
+bool WriteMoveVertex_SelectedVertex(MQDocument doc, const char *path, int ignoreObjIdx = -1)
+{
+  FILE *fp = fopen(path, "wb");
+  if(fp==NULL)return false;
+  bool bRet = _WriteMoveVertex_SelectedVertex(doc, fp, ignoreObjIdx);
+  fclose(fp);
+  return bRet;
+}
+bool WriteMoveVertex_SelectedVertex(MQDocument doc, const wchar_t *path, int ignoreObjIdx = -1)
+{
+  FILE *fp = _wfopen(path, L"wb");
+  if(fp==NULL)return false;
+  bool bRet = _WriteMoveVertex_SelectedVertex(doc, fp, ignoreObjIdx);
+  fclose(fp);
+  return bRet;
 }
 
-void MoveXYZAxis(Tree &tree, MQDocument doc, int modexyz, int ignoreObjIdx = -1)
-{
-  Direction d1, d2;
-  switch(modexyz)
-  {
-  case 0:
-    d1 = Direction(Vector3(1.0, 0.0, 0.0));
-    d2 = Direction(Vector3(-1.0, 0.0, 0.0));
-    break;
-  case 1:
-    d1 = Direction(Vector3(0.0, 1.0, 0.0));
-    d2 = Direction(Vector3(0.0, -1.0, 0.0));
-    break;
-  default:
-    d1 = Direction(Vector3(0.0, 0.0, 1.0));
-    d2 = Direction(Vector3(0.0, 0.0, -1.0));
-    break;
-  }
-  for(int i=0;i<doc->GetObjectCount();i++)
-  {
-    MQObject o = doc->GetObject(i);
-    if(o==NULL)continue;
-    if(o->GetVisible()==0)continue;
-    if(o->GetLocking()==1)continue;
-    if(i==ignoreObjIdx)continue;
-    
-    int numV = o->GetVertexCount();
-    for(int j=0;j<numV;j++)
-    {
-      if(doc->IsSelectVertex(i, j)==FALSE)continue;
-      
-      MQPoint mp_query = o->GetVertex(j);
-      Point p_query(mp_query.x, mp_query.y, mp_query.z);
-      Ray r1(p_query, d1);
-      Ray r2(p_query, d2);
-      Ray_intersection intersection1 = tree.first_intersection(r1);
-      Ray_intersection intersection2 = tree.first_intersection(r2);
-      Point *p1 = NULL, *p2 = NULL;
-      double len1 = DBL_MAX, len2 = DBL_MAX;
-      if(intersection1){
-        if(boost::get<Point>(&(intersection1->first))){
-          p1 =  boost::get<Point>(&(intersection1->first) );
-          Vector3 v1(p_query, *p1);
-          len1 = v1.squared_length();
-        }
-      }
-      if(intersection2){
-        if(boost::get<Point>(&(intersection2->first))){
-          p2 =  boost::get<Point>(&(intersection2->first) );
-          Vector3 v2(p_query, *p2);
-          len2 = v2.squared_length();
-        }
-      }
-      if(p1==NULL && p2==NULL)continue;
 
-      Point *pz = (len1<len2)?p1:p2;
-      mp_query.x = (*pz)[0];
-      mp_query.y = (*pz)[1];
-      mp_query.z = (*pz)[2];
-      o->SetVertex(j, mp_query);
-    }
-  }
+std::string GetShrinkWrapPathA()
+{
+  char path[_MAX_PATH+16];
+  path[0] = NULL;
+  bool bRet = GetDllDirA(path, _MAX_PATH);
+  if(!bRet)return "ShrinkWrap.exe";
+  std::string ret = path;
+  return ret+"\\ShrinkWrap.exe";
 }
 
-void MoveCameraAxis(Tree &tree, MQDocument doc, int ignoreObjIdx = -1)
+std::wstring GetShrinkWrapPathW()
 {
-  MQScene scene = doc->GetScene(0);
-  MQPoint mqcp = scene->GetCameraPosition();
-  Point p_camera(mqcp.x, mqcp.y, mqcp.z);
+  wchar_t path[_MAX_PATH+16];
+  path[0] = NULL;
+  bool bRet = GetDllDirW(path, _MAX_PATH);
+  if(!bRet)return L"ShrinkWrap.exe";
+  std::wstring ret = path;
+  return ret+L"\\ShrinkWrap.exe";
+}
 
-  for(int i=0;i<doc->GetObjectCount();i++)
+
+bool _ReadMoveVertex(MQDocument doc, FILE *fp)
+{
+  if(fgetc(fp)!='A')return false;
+  if(fgetc(fp)!='A')return false;
+  if(fgetc(fp)!='B')return false;
+  if(fgetc(fp)!='B')return false;
+  if(fgetc(fp)!='V')return false;
+  if(fgetc(fp)!=0x0)return false;
+  if(fgetc(fp)!=0x0)return false;
+  float x,y,z;
+  int oi, vi;
+  
+  while(1)
   {
-    MQObject o = doc->GetObject(i);
-    if(o==NULL)continue;
-    if(o->GetVisible()==0)continue;
-    if(o->GetLocking()==1)continue;
-    if(i==ignoreObjIdx)continue;
-    
-    int numV = o->GetVertexCount();
-    for(int j=0;j<numV;j++)
+    for(int pi=0;pi<3;pi++)
     {
-      if(doc->IsSelectVertex(i, j)==FALSE)continue;
+      if(fread(&oi, sizeof(int), 1, fp)!=1)return true;
+      if(fread(&vi, sizeof(int), 1, fp)!=1)return false;
+      if(fread(&x, sizeof(float), 1, fp)!=1)return false;
+      if(fread(&y, sizeof(float), 1, fp)!=1)return false;
+      if(fread(&z, sizeof(float), 1, fp)!=1)return false;
       
-      MQPoint mp_query = o->GetVertex(j);
-      Point p_query(mp_query.x, mp_query.y, mp_query.z);
-      Vector3 v1(p_camera, p_query);
-      Vector3 v2(p_query, p_camera);
-      
-      Ray r1(p_query, v1.direction());
-      Ray r2(p_query, v2.direction());
-      Ray_intersection intersection1 = tree.first_intersection(r1);
-      Ray_intersection intersection2 = tree.first_intersection(r2);
-      Point *p1 = NULL, *p2 = NULL;
-      double len1 = DBL_MAX, len2 = DBL_MAX;
-      if(intersection1){
-        if(boost::get<Point>(&(intersection1->first))){
-          p1 =  boost::get<Point>(&(intersection1->first) );
-          Vector3 v1(p_query, *p1);
-          len1 = v1.squared_length();
-        }
-      }
-      if(intersection2){
-        if(boost::get<Point>(&(intersection2->first))){
-          p2 =  boost::get<Point>(&(intersection2->first) );
-          Vector3 v2(p_query, *p2);
-          len2 = v2.squared_length();
-        }
-      }
-      if(p1==NULL && p2==NULL)continue;
-
-      Point *pz = (len1<len2)?p1:p2;
-      mp_query.x = (*pz)[0];
-      mp_query.y = (*pz)[1];
-      mp_query.z = (*pz)[2];
-      o->SetVertex(j, mp_query);
+      MQObject o = doc->GetObject(oi);
+      if(o==NULL || o->GetLocking()==1)return false;
+      int numVertex = o->GetVertexCount();
+      if(vi<0 || vi>=numVertex)return false;
+      o->SetVertex(vi, MQPoint(x,y,z));
     }
   }
+  return true;
+}
+bool ReadMoveVertex(MQDocument doc, const char *path)
+{
+  FILE *fp = fopen(path, "rb");
+  if(fp==NULL)return false;
+  bool bRet = _ReadMoveVertex(doc, fp);
+  fclose(fp);
+  return bRet;
+}
+bool ReadMoveVertex(MQDocument doc, const wchar_t *path)
+{
+  FILE *fp = _wfopen(path, L"rb");
+  if(fp==NULL)return false;
+  bool bRet = _ReadMoveVertex(doc, fp);
+  fclose(fp);
+  return bRet;
 }
 
 BOOL ShrinkWrap(MQDocument doc)
 {
   int guideObjIdx = 0;
 
-	MQWindow mainwin = MQWindow::GetMainWindow();
-	ShrinkDialog dlg(mainwin);
-  dlg.MakeObjList(doc);
-	if(dlg.Execute() != MQDialog::DIALOG_OK){
-		return FALSE;
-	}
+  MQWindow mainwin = MQWindow::GetMainWindow();
+  ShrinkDialog dlg(mainwin);
+  dlg.UpdateEnable(doc);
+  if(dlg.Execute() != MQDialog::DIALOG_OK){
+    return FALSE;
+  }
   guideObjIdx = dlg.GetSelectObjIdx();
   if(guideObjIdx<0)return FALSE;
 
   int mode = dlg.combo_mode->GetCurrentIndex();
   
   MQObject o = doc->GetObject(guideObjIdx);
-  if(o==NULL || o->GetVisible()==0)return FALSE;
+  if(o==NULL /*|| o->GetVisible()==0*/)return FALSE;
   
-  std::list<Triangle> triangles;
-  AABB_AddMQObj(triangles, doc, o);
-  Tree tree(triangles.begin(),triangles.end());
-  switch(mode)
+  bool bRet = false;
+  
+  std::wstring ppath = GetShrinkWrapPathW();
+  std::wstring inpath = MyGetTempFilePathW();
+  std::wstring aabbpath = MyGetTempFilePathW();
+  std::wstring outpath = MyGetTempFilePathW();
+  
+  bRet = WriteAABB_ByMQObject(doc, o, aabbpath.c_str());
+  if(!bRet)
   {
-  case 0:
-    MoveClosestPoint(tree, doc, guideObjIdx);
-    break;
-  case 1:
-  case 2:
-  case 3:
-    MoveXYZAxis(tree, doc, mode-1, guideObjIdx);
-    break;
-  case 4:
-    MoveCameraAxis(tree, doc, guideObjIdx);
-    break;
+    _wremove(aabbpath.c_str());
+    return FALSE;
+  }
+  
+  bRet = WriteMoveVertex_SelectedVertex(doc, inpath.c_str(), guideObjIdx);
+  if(!bRet)
+  {
+    _wremove(aabbpath.c_str());
+    _wremove(inpath.c_str());
+    return FALSE;
   }
 
-	MQ_RefreshView(NULL);
-	
-	return TRUE;
+  MQScene scene = doc->GetScene(0);
+  MQPoint mqcp = scene->GetCameraPosition();
+  std::wstring strCameraPos = L"";
+  long double xll = mqcp.x;
+  long double yll = mqcp.y;
+  long double zll = mqcp.z;
+  if(mode==4)strCameraPos = L" -c "+std::to_wstring(xll)+L" "+std::to_wstring(yll)+L" "+std::to_wstring(zll)+L" ";
+  
+  long long modell = mode;
+  std::wstring cmd = L"\""+ppath+L"\" --in \""+inpath+L"\" --target \""+aabbpath+L"\" --mode "+std::to_wstring(modell)+strCameraPos+L" --out \""+outpath+L"\"";
+
+  DWORD result = RunCmdW(cmd);
+  
+  if(result!=0)
+  {
+    OutputDebugStringA("ShrinkWrap.exe failed!");
+    _wremove(outpath.c_str());
+    _wremove(inpath.c_str());
+    _wremove(aabbpath.c_str());
+    return FALSE;
+  }
+  
+  bool ret = ReadMoveVertex(doc, outpath.c_str());
+  
+  _wremove(outpath.c_str());
+  _wremove(inpath.c_str());
+  _wremove(aabbpath.c_str());
+  
+  if(!ret)
+  {
+    OutputDebugStringA("outfile corrupted!!");
+    return FALSE;
+  }
+
+  MQ_RefreshView(NULL);
+
+  return TRUE;
 }
 

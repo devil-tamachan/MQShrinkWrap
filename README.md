@@ -20,7 +20,7 @@
  - 32ビット版が欲しい人は自分でコンパイルしてください
 
 ## インストール方法
- - MQShrinkWrap.dll, CGAL-vc100-mt-4.9.1.dl_ の２ファイルを　Metasequoia4_x64\Plugins\Select　フォルダへコピー、貼り付け
+ - MQShrinkWrap.dll, ShrinkWrap.exe, CGAL-vc100-mt-4.9.1.dl_ の３ファイルを　Metasequoia4_x64\Plugins\Select　フォルダへコピー、貼り付け
  
 ## 詳しい動作解説
  - ポリゴンの裏表関係なく一番近い面上に吸着します。
@@ -28,10 +28,9 @@
 
 ## コンパイル方法
  - VCインストール
- - CGAL4.9.1をインストール (4.9.1までVC2010対応)
+ - CGAL4.9.1をインストール、CMakeでビルド (4.9.1までVC2010対応)
  - Boostインストール
- - ATLが無い場合は手に入れる。たしかPSDKかなんかで手に入るはず。手に入らない場合はA2Wを適当に書き換えてください
- - コンパイル
+ - CMakeでコンパイル
 
 ## メタセコイア４ プラグインリンク集
  - https://docs.google.com/spreadsheets/d/1HNXBzK-aAXoJ_Dp4ijxiaHkrvYuYB7sx4kyf-tdV0Hk/edit#gid=0

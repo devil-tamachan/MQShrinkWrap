@@ -150,10 +150,13 @@ ShrinkDialog::ShrinkDialog(MQWindowBase& parent) : MQDialog(parent)
   MQFrame *paramFrame = CreateHorizontalFrame(mainFrame);
   paramFrame->SetMatrixColumn(2);
 
+  CreateLabel(paramFrame, L"吸着させる頂点");
+  CreateLabel(paramFrame, L"選択された頂点");
+
   CreateLabel(paramFrame, L"吸着先");
   combo_guideobj = CreateComboBox(paramFrame);
 
-  CreateLabel(paramFrame, L"\"吸着先オブジェクト\"から非表示オブジェを除く");
+  CreateLabel(paramFrame, L"\"吸着先\"から非表示オブジェを除く");
   check_visibleObjOnly = CreateCheckBox(paramFrame);
   check_visibleObjOnly->SetChecked(true);
   check_visibleObjOnly->AddChangedEvent(this, &ShrinkDialog::uiChanged);

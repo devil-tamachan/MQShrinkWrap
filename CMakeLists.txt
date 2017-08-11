@@ -4,6 +4,7 @@ project (MQShrinkWrap)
 add_definitions(-D_UNICODE -DUNICODE)
 
 add_definitions( -DBOOST_ALL_NO_LIB )
+set( Boost_USE_STATIC_LIBS   ON )
 find_package(Boost 1.64.0 COMPONENTS program_options filesystem REQUIRED)
 include_directories(${Boost_INCLUDE_DIRS})
 link_directories(${Boost_LIBRARY_DIR})

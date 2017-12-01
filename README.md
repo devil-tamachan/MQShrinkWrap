@@ -31,6 +31,9 @@
  - CGAL4.9.1をインストール、CMakeでビルド (4.9.1までVC2010対応)
  - Boostインストール
  - CMakeでコンパイル
+ 
+ ## 分離した処理部分はこちら(GPL部分を分離しました)
+  - https://github.com/devil-tamachan/ShrinkWrap
 
 ## メタセコイア４ プラグインリンク集
  - https://docs.google.com/spreadsheets/d/1HNXBzK-aAXoJ_Dp4ijxiaHkrvYuYB7sx4kyf-tdV0Hk/edit#gid=0

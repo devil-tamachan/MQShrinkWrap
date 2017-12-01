@@ -384,6 +384,21 @@ bool ReadMoveVertex(MQDocument doc, const wchar_t *path)
   return bRet;
 }
 
+bool WriteCameraPos(MQDocument doc, const wchar_t *path)
+{
+  FILE *fp = _wfopen(path, L"wb");
+  if(fp==NULL)return false;
+
+  MQScene scene = doc->GetScene(0);
+  MQPoint mqcp = scene->GetCameraPosition();
+  fwrite(&(mqcp.x), sizeof(float), 1, fp);
+  fwrite(&(mqcp.y), sizeof(float), 1, fp);
+  fwrite(&(mqcp.z), sizeof(float), 1, fp);
+
+  fclose(fp);
+  return true;
+}
+
 BOOL ShrinkWrap(MQDocument doc)
 {
   int guideObjIdx = 0;
@@ -408,6 +423,7 @@ BOOL ShrinkWrap(MQDocument doc)
   std::wstring inpath = MyGetTempFilePathW();
   std::wstring aabbpath = MyGetTempFilePathW();
   std::wstring outpath = MyGetTempFilePathW();
+  std::wstring camerapath = MyGetTempFilePathW();
   
   bRet = WriteAABB_ByMQObject(doc, o, aabbpath.c_str());
   if(!bRet)
@@ -424,13 +440,18 @@ BOOL ShrinkWrap(MQDocument doc)
     return FALSE;
   }
 
-  MQScene scene = doc->GetScene(0);
-  MQPoint mqcp = scene->GetCameraPosition();
+/*  MQScene scene = doc->GetScene(0);
+  MQPoint mqcp = scene->GetCameraPosition();*/
   std::wstring strCameraPos = L"";
-  long double xll = mqcp.x;
+/*  long double xll = mqcp.x;
   long double yll = mqcp.y;
-  long double zll = mqcp.z;
-  if(mode==4)strCameraPos = L" -c "+std::to_wstring(xll)+L" "+std::to_wstring(yll)+L" "+std::to_wstring(zll)+L" ";
+  long double zll = mqcp.z;*/
+  if(mode==4)
+  {
+    WriteCameraPos(doc, camerapath.c_str());
+    strCameraPos = L" -c \""+camerapath+L"\" ";
+    //strCameraPos = L" -c "+std::to_wstring(xll)+L" "+std::to_wstring(yll)+L" "+std::to_wstring(zll)+L" ";
+  }
   
   long long modell = mode;
   std::wstring cmd = L"\""+ppath+L"\" --in \""+inpath+L"\" --target \""+aabbpath+L"\" --mode "+std::to_wstring(modell)+strCameraPos+L" --out \""+outpath+L"\"";
@@ -443,6 +464,7 @@ BOOL ShrinkWrap(MQDocument doc)
     _wremove(outpath.c_str());
     _wremove(inpath.c_str());
     _wremove(aabbpath.c_str());
+    if(mode==4)_wremove(camerapath.c_str());
     return FALSE;
   }
   
@@ -451,6 +473,7 @@ BOOL ShrinkWrap(MQDocument doc)
   _wremove(outpath.c_str());
   _wremove(inpath.c_str());
   _wremove(aabbpath.c_str());
+  if(mode==4)_wremove(camerapath.c_str());
   
   if(!ret)
   {

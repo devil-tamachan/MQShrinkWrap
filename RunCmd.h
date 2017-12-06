@@ -83,7 +83,7 @@ DWORD RunCmdA(std::string &cmd)
 #else
 DWORD RunCmdA(std::string &cmd)
 {
-  MQWindow win = MQWindow::GetMainWindow();
+  //MQWindow win = MQWindow::GetMainWindow();
   //MQDialog::MessageInformationBox(win, MQEncoding::AnsiToWide(cmd.c_str()), L"RunCmdA");
   return system(cmd.c_str());
 }

@@ -15,12 +15,18 @@
   - メニュー -> 選択部処理 -> ShrinkWrap
   - 吸着先のオブジェクト & 吸着モードを選んでOK押す
 
-## ダウンロード (64ビット版のみ）
+## ダウンロード (Win64/MacOSX）
  - https://github.com/devil-tamachan/MQShrinkWrap/releases
  - 32ビット版が欲しい人は自分でコンパイルしてください
 
-## インストール方法
- - MQShrinkWrap.dll, ShrinkWrap.exe, CGAL-vc100-mt-4.9.1.dl_ の３ファイルを　Metasequoia4_x64\Plugins\Select　フォルダへコピー、貼り付け
+## インストール方法 (Windows x64版)
+ - MQShrinkWrap.dll, ShrinkWrap.exe の２ファイルを　Metasequoia4_x64\Plugins\Select　フォルダへコピー、貼り付け
+   - 場所がわからない人はアプリを全部終了して、Windowsキーを押したままRを押して"ファイル名を指定して実行"アプリを出します。
+   - 名前に %APPDATA%\tetraface\Metasequoia4_x64\Plugins\Select と入力してOKを押してください
+
+## インストール方法 (MacOSX版)
+ - 上記リンクからダウンロードしたzipを解凍する
+ - メタセコ画面上部のメニュー → ヘルプ → プラグインについて → インストールボタンをクリック。MQShrinkWrap.pluginを選択してインストール
  
 ## 詳しい動作解説
  - ポリゴンの裏表関係なく一番近い面上に吸着します。

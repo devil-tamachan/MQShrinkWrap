@@ -1,8 +1,13 @@
 #ifndef _TAMA_RUNCMDUTIL_
 #define _TAMA_RUNCMDUTIL_
 
-#pragma comment(lib, "shlwapi.lib")
+#include <string.h>
 
+#if defined _WIN32 || defined __CYGWIN__
+#pragma comment(lib, "shlwapi.lib")
+#endif
+
+#if defined _WIN32 || defined __CYGWIN__
 bool GetDllDirA(char *path, int size)
 {
   //char path[_MAX_PATH+16];
@@ -21,6 +26,25 @@ bool GetDllDirW(wchar_t *path, int size)
   PathRemoveFileSpecW(path);
   return true;
 }
+#else
+bool GetMacOSDirInPlugin(char *path, int maxBufLen, CFStringRef bundleid)
+{
+  CFBundleRef bundle = CFBundleGetBundleWithIdentifier(bundleid);
+  if(bundle==NULL)
+  {
+    strcpy(path, "");
+    return false;
+  }
+  CFURLRef bundleUrl = CFBundleCopyBundleURL(bundle);
+  CFStringRef dirPathRef = CFURLCopyFileSystemPath(bundleUrl, kCFURLPOSIXPathStyle);
+  const char* filePath = CFStringGetCStringPtr(dirPathRef, kCFStringEncodingUTF8);
+  strcpy(path, filePath);
+  
+  CFRelease(dirPathRef);
+  CFRelease(bundleUrl);
+  return true;
+}
+#endif
 
 std::string MyGetTempFilePathA()
 {
@@ -28,12 +52,15 @@ std::string MyGetTempFilePathA()
   return path.string();
 }
 
+#if defined _WIN32 || defined __CYGWIN__
 std::wstring MyGetTempFilePathW()
 {
   boost::filesystem::path path = boost::filesystem::temp_directory_path() / boost::filesystem::unique_path();
   return path.native();
 }
+#endif
 
+#if defined _WIN32 || defined __CYGWIN__
 DWORD RunCmdA(std::string &cmd)
 {
   STARTUPINFOA si = {0};
@@ -53,7 +80,16 @@ DWORD RunCmdA(std::string &cmd)
   CloseHandle(pi.hThread);
   return result;
 }
+#else
+DWORD RunCmdA(std::string &cmd)
+{
+  MQWindow win = MQWindow::GetMainWindow();
+  //MQDialog::MessageInformationBox(win, MQEncoding::AnsiToWide(cmd.c_str()), L"RunCmdA");
+  return system(cmd.c_str());
+}
+#endif
 
+#if defined _WIN32 || defined __CYGWIN__
 DWORD RunCmdW(std::wstring &cmd)
 {
   STARTUPINFOW si = {0};
@@ -73,5 +109,6 @@ DWORD RunCmdW(std::wstring &cmd)
   CloseHandle(pi.hThread);
   return result;
 }
+#endif
 
 #endif //_TAMA_RUNCMDUTIL_

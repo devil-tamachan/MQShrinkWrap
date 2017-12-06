@@ -23,10 +23,36 @@ endif()
 
 INCLUDE_DIRECTORIES( "${MQSDK_INCLUDE_DIR}" )
 
-add_library(MQShrinkWrap SHARED
-  MQShrinkWrap.cpp
-  ${MQSDK_INCLUDE_DIR}/MQInit.cpp
-  ${MQSDK_INCLUDE_DIR}/MQPlugin.cpp
-  ${MQSDK_INCLUDE_DIR}/MQWidget.cpp
-)
+IF(WIN32)
+  add_library(MQShrinkWrap SHARED
+    MQShrinkWrap.cpp
+    ${MQSDK_INCLUDE_DIR}/MQInit.cpp
+    ${MQSDK_INCLUDE_DIR}/MQPlugin.cpp
+    ${MQSDK_INCLUDE_DIR}/MQWidget.cpp
+  )
+  set(CMAKE_SHARED_LINKER_FLAGS_RELEASE "${CMAKE_SHARED_LINKER_FLAGS_RELEASE} /OPT:REF")
+ELSE()
+  set(MACOSX_BUNDLE_INFO_STRING "tamachan.mq.MQShrinkWrap")
+  set(MACOSX_BUNDLE_BUNDLE_NAME "tamachan.mq.MQShrinkWrap")
+  set(MACOSX_BUNDLE_GUI_IDENTIFIER "tamachan.mq.MQShrinkWrap")
+
+  add_library(MQShrinkWrap MODULE
+    MQShrinkWrap.cpp
+    ${MQSDK_INCLUDE_DIR}/MQInit.cpp
+    ${MQSDK_INCLUDE_DIR}/MQPlugin.cpp
+    ${MQSDK_INCLUDE_DIR}/MQWidget.cpp
+    ${MQSDK_INCLUDE_DIR}/osx/StringUtil.mm
+  )
+  target_link_libraries(MQShrinkWrap "-framework CoreFoundation")
+  target_link_libraries(MQShrinkWrap "-framework Cocoa")
+  set_target_properties(MQShrinkWrap PROPERTIES
+    BUNDLE TRUE
+    BUNDLE_EXTENSION plugin
+  )
+ENDIF()
+
+if(CMAKE_CL_64)
+  set_target_properties(MQShrinkWrap PROPERTIES OUTPUT_NAME "MQShrinkWrap64")
+endif()
+
 target_link_libraries( MQShrinkWrap ${Boost_LIBRARIES} )

@@ -1,0 +1,4 @@
+cp ../../ShrinkWrap-master/builds/ShrinkWrap MQShrinkWrap.plugin/Contents/MacOS/ShrinkWrap
+strip -SXTx MQShrinkWrap.plugin/Contents/MacOS/MQShrinkWrap
+strip -SXTx  MQShrinkWrap.plugin/Contents/MacOS/ShrinkWrap
+cp -r MQShrinkWrap.plugin "$HOME/Library/Application Support/tetraface/Metasequoia4/Plugins/Select/"

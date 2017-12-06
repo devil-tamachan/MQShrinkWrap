@@ -1,14 +1,20 @@
 
 
+#if defined _WIN32 || defined __CYGWIN__
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#include <shlwapi.h>
+#else
+#include <CoreFoundation/CoreFoundation.h>
+#define _MAX_PATH PATH_MAX
+#endif
+
 #include <stdio.h>
 #include <math.h>
 #include <vector>
 #include "MQPlugin.h"
 #include "MQWidget.h"
 
-#include <shlwapi.h>
 
 BOOL ShrinkWrap(MQDocument doc);
 
@@ -20,6 +26,7 @@ BOOL ShrinkWrap(MQDocument doc);
 
 #include "RunCmd.h"
 
+#if defined _WIN32 || defined __CYGWIN__
 //---------------------------------------------------------------------------
 //  DllMain
 //---------------------------------------------------------------------------
@@ -28,49 +35,50 @@ BOOL APIENTRY DllMain( HANDLE hModule,
                        LPVOID lpReserved
 					 )
 {
-	//ƒvƒ‰ƒOƒCƒ“‚Æ‚µ‚Ä‚Í“Á‚É•K—v‚Èˆ—‚Í‚È‚¢‚Ì‚ÅA‰½‚à‚¹‚¸‚ÉTRUE‚ð•Ô‚·
+	//ãƒ—ãƒ©ã‚°ã‚¤ãƒ³ã¨ã—ã¦ã¯ç‰¹ã«å¿…è¦ãªå‡¦ç†ã¯ãªã„ã®ã§ã€ä½•ã‚‚ã›ãšã«TRUEã‚’è¿”ã™
     return TRUE;
 }
+#endif
 
 //---------------------------------------------------------------------------
 //  MQGetPlugInID
-//    ƒvƒ‰ƒOƒCƒ“ID‚ð•Ô‚·B
-//    ‚±‚ÌŠÖ”‚Í‹N“®Žž‚ÉŒÄ‚Ño‚³‚ê‚éB
+//    ãƒ—ãƒ©ã‚°ã‚¤ãƒ³IDã‚’è¿”ã™ã€‚
+//    ã“ã®é–¢æ•°ã¯èµ·å‹•æ™‚ã«å‘¼ã³å‡ºã•ã‚Œã‚‹ã€‚
 //---------------------------------------------------------------------------
 MQPLUGIN_EXPORT void MQGetPlugInID(DWORD *Product, DWORD *ID)
 {
-	// ƒvƒƒ_ƒNƒg–¼(§ìŽÒ–¼)‚ÆID‚ðA‘S•”‚Å64bit‚Ì’l‚Æ‚µ‚Ä•Ô‚·
-	// ’l‚Í‘¼‚Æd•¡‚µ‚È‚¢‚æ‚¤‚Èƒ‰ƒ“ƒ_ƒ€‚È‚à‚Ì‚Å—Ç‚¢
+	// ãƒ—ãƒ­ãƒ€ã‚¯ãƒˆå(åˆ¶ä½œè€…å)ã¨IDã‚’ã€å…¨éƒ¨ã§64bitã®å€¤ã¨ã—ã¦è¿”ã™
+	// å€¤ã¯ä»–ã¨é‡è¤‡ã—ãªã„ã‚ˆã†ãªãƒ©ãƒ³ãƒ€ãƒ ãªã‚‚ã®ã§è‰¯ã„
 	*Product = 0xA8BEE201;
 	*ID      = 0xCC9DA490;
 }
 
 //---------------------------------------------------------------------------
 //  MQGetPlugInName
-//    ƒvƒ‰ƒOƒCƒ“–¼‚ð•Ô‚·B
-//    ‚±‚ÌŠÖ”‚Í[ƒvƒ‰ƒOƒCƒ“‚É‚Â‚¢‚Ä]•\Ž¦Žž‚ÉŒÄ‚Ño‚³‚ê‚éB
+//    ãƒ—ãƒ©ã‚°ã‚¤ãƒ³åã‚’è¿”ã™ã€‚
+//    ã“ã®é–¢æ•°ã¯[ãƒ—ãƒ©ã‚°ã‚¤ãƒ³ã«ã¤ã„ã¦]è¡¨ç¤ºæ™‚ã«å‘¼ã³å‡ºã•ã‚Œã‚‹ã€‚
 //---------------------------------------------------------------------------
 MQPLUGIN_EXPORT const char *MQGetPlugInName(void)
 {
-	// ƒvƒ‰ƒOƒCƒ“–¼
+	// ãƒ—ãƒ©ã‚°ã‚¤ãƒ³å
 	return "MQShrinkWrap           Copyright(C) 2017, tamachan";
 }
 
 //---------------------------------------------------------------------------
 //  MQGetPlugInType
-//    ƒvƒ‰ƒOƒCƒ“‚Ìƒ^ƒCƒv‚ð•Ô‚·B
-//    ‚±‚ÌŠÖ”‚Í‹N“®Žž‚ÉŒÄ‚Ño‚³‚ê‚éB
+//    ãƒ—ãƒ©ã‚°ã‚¤ãƒ³ã®ã‚¿ã‚¤ãƒ—ã‚’è¿”ã™ã€‚
+//    ã“ã®é–¢æ•°ã¯èµ·å‹•æ™‚ã«å‘¼ã³å‡ºã•ã‚Œã‚‹ã€‚
 //---------------------------------------------------------------------------
 MQPLUGIN_EXPORT int MQGetPlugInType(void)
 {
-	// ‘I‘ð•”•ÏŒ`—pƒvƒ‰ƒOƒCƒ“‚Å‚ ‚é
+	// é¸æŠžéƒ¨å¤‰å½¢ç”¨ãƒ—ãƒ©ã‚°ã‚¤ãƒ³ã§ã‚ã‚‹
 	return MQPLUGIN_TYPE_SELECT;
 }
 
 //---------------------------------------------------------------------------
 //  MQEnumString
-//    ƒ|ƒbƒvƒAƒbƒvƒƒjƒ…[‚É•\Ž¦‚³‚ê‚é•¶Žš—ñ‚ð•Ô‚·B
-//    ‚±‚ÌŠÖ”‚Í‹N“®Žž‚ÉŒÄ‚Ño‚³‚ê‚éB
+//    ãƒãƒƒãƒ—ã‚¢ãƒƒãƒ—ãƒ¡ãƒ‹ãƒ¥ãƒ¼ã«è¡¨ç¤ºã•ã‚Œã‚‹æ–‡å­—åˆ—ã‚’è¿”ã™ã€‚
+//    ã“ã®é–¢æ•°ã¯èµ·å‹•æ™‚ã«å‘¼ã³å‡ºã•ã‚Œã‚‹ã€‚
 //---------------------------------------------------------------------------
 MQPLUGIN_EXPORT const char *MQEnumString(int index)
 {
@@ -82,7 +90,7 @@ MQPLUGIN_EXPORT const char *MQEnumString(int index)
 
 //---------------------------------------------------------------------------
 //  MQModifySelect
-//    ƒƒjƒ…[‚©‚ç‘I‘ð‚³‚ê‚½‚Æ‚«‚ÉŒÄ‚Ño‚³‚ê‚éB
+//    ãƒ¡ãƒ‹ãƒ¥ãƒ¼ã‹ã‚‰é¸æŠžã•ã‚ŒãŸã¨ãã«å‘¼ã³å‡ºã•ã‚Œã‚‹ã€‚
 //---------------------------------------------------------------------------
 MQPLUGIN_EXPORT BOOL MQModifySelect(int index, MQDocument doc)
 {
@@ -150,24 +158,24 @@ ShrinkDialog::ShrinkDialog(MQWindowBase& parent) : MQDialog(parent)
   MQFrame *paramFrame = CreateHorizontalFrame(mainFrame);
   paramFrame->SetMatrixColumn(2);
 
-  CreateLabel(paramFrame, L"‹z’…‚³‚¹‚é’¸“_");
-  CreateLabel(paramFrame, L"‘I‘ð‚³‚ê‚½’¸“_");
+  CreateLabel(paramFrame, L"å¸ç€ã•ã›ã‚‹é ‚ç‚¹");
+  CreateLabel(paramFrame, L"é¸æŠžã•ã‚ŒãŸé ‚ç‚¹");
 
-  CreateLabel(paramFrame, L"‹z’…æ");
+  CreateLabel(paramFrame, L"å¸ç€å…ˆ");
   combo_guideobj = CreateComboBox(paramFrame);
 
-  CreateLabel(paramFrame, L"\"‹z’…æ\"‚©‚ç”ñ•\Ž¦ƒIƒuƒWƒF‚ðœ‚­");
+  CreateLabel(paramFrame, L"\"å¸ç€å…ˆ\"ã‹ã‚‰éžè¡¨ç¤ºã‚ªãƒ–ã‚¸ã‚§ã‚’é™¤ã");
   check_visibleObjOnly = CreateCheckBox(paramFrame);
   check_visibleObjOnly->SetChecked(true);
   check_visibleObjOnly->AddChangedEvent(this, &ShrinkDialog::uiChanged);
 
-  CreateLabel(paramFrame, L"ƒ‚[ƒh");
+  CreateLabel(paramFrame, L"ãƒ¢ãƒ¼ãƒ‰");
   combo_mode = CreateComboBox(paramFrame);
-  combo_mode->AddItem(L"Å’Z–Êã‚É‹z’…");
-  combo_mode->AddItem(L"XŽ²‚Ì‚Ý‰Â•Ï");
-  combo_mode->AddItem(L"YŽ²‚Ì‚Ý‰Â•Ï");
-  combo_mode->AddItem(L"ZŽ²‚Ì‚Ý‰Â•Ï");
-  combo_mode->AddItem(L"ƒJƒƒ‰•ûŒü‚Ì‚Ý‰Â•Ï");
+  combo_mode->AddItem(L"æœ€çŸ­é¢ä¸Šã«å¸ç€");
+  combo_mode->AddItem(L"Xè»¸ã®ã¿å¯å¤‰");
+  combo_mode->AddItem(L"Yè»¸ã®ã¿å¯å¤‰");
+  combo_mode->AddItem(L"Zè»¸ã®ã¿å¯å¤‰");
+  combo_mode->AddItem(L"ã‚«ãƒ¡ãƒ©æ–¹å‘ã®ã¿å¯å¤‰");
   combo_mode->SetCurrentIndex(0);
 
   MQFrame *sideFrame = CreateVerticalFrame(mainFrame);
@@ -250,6 +258,7 @@ bool WriteAABB_ByMQObject(MQDocument doc, MQObject o, const char *path)
   fclose(fp);
   return bRet;
 }
+#if defined _WIN32 || defined __CYGWIN__
 bool WriteAABB_ByMQObject(MQDocument doc, MQObject o, const wchar_t *path)
 {
   FILE *fp = _wfopen(path, L"wb");
@@ -258,6 +267,7 @@ bool WriteAABB_ByMQObject(MQDocument doc, MQObject o, const wchar_t *path)
   fclose(fp);
   return bRet;
 }
+#endif
 
 bool _WriteMoveVertex_SelectedVertex(MQDocument doc, FILE *fp, int ignoreObjIdx = -1)
 {
@@ -305,6 +315,7 @@ bool WriteMoveVertex_SelectedVertex(MQDocument doc, const char *path, int ignore
   fclose(fp);
   return bRet;
 }
+#if defined _WIN32 || defined __CYGWIN__
 bool WriteMoveVertex_SelectedVertex(MQDocument doc, const wchar_t *path, int ignoreObjIdx = -1)
 {
   FILE *fp = _wfopen(path, L"wb");
@@ -313,18 +324,29 @@ bool WriteMoveVertex_SelectedVertex(MQDocument doc, const wchar_t *path, int ign
   fclose(fp);
   return bRet;
 }
+#endif
 
 
 std::string GetShrinkWrapPathA()
 {
+#if defined _WIN32 || defined __CYGWIN__
   char path[_MAX_PATH+16];
   path[0] = NULL;
   bool bRet = GetDllDirA(path, _MAX_PATH);
   if(!bRet)return "ShrinkWrap.exe";
   std::string ret = path;
   return ret+"\\ShrinkWrap.exe";
+#else
+  char path[_MAX_PATH+16];
+  path[0] = NULL;
+  bool bRet = GetMacOSDirInPlugin(path, _MAX_PATH, CFSTR("tamachan.mq.MQShrinkWrap"));
+  if(!bRet)return "ShrinkWrap";
+  std::string ret = path;
+  return ret+"/Contents/MacOS/ShrinkWrap";
+#endif
 }
 
+#if defined _WIN32 || defined __CYGWIN__
 std::wstring GetShrinkWrapPathW()
 {
   wchar_t path[_MAX_PATH+16];
@@ -334,6 +356,7 @@ std::wstring GetShrinkWrapPathW()
   std::wstring ret = path;
   return ret+L"\\ShrinkWrap.exe";
 }
+#endif
 
 
 bool _ReadMoveVertex(MQDocument doc, FILE *fp)
@@ -375,6 +398,7 @@ bool ReadMoveVertex(MQDocument doc, const char *path)
   fclose(fp);
   return bRet;
 }
+#if defined _WIN32 || defined __CYGWIN__
 bool ReadMoveVertex(MQDocument doc, const wchar_t *path)
 {
   FILE *fp = _wfopen(path, L"rb");
@@ -383,12 +407,10 @@ bool ReadMoveVertex(MQDocument doc, const wchar_t *path)
   fclose(fp);
   return bRet;
 }
+#endif
 
-bool WriteCameraPos(MQDocument doc, const wchar_t *path)
+bool _WriteCameraPos(MQDocument doc, FILE *fp)
 {
-  FILE *fp = _wfopen(path, L"wb");
-  if(fp==NULL)return false;
-
   MQScene scene = doc->GetScene(0);
   MQPoint mqcp = scene->GetCameraPosition();
   fwrite(&(mqcp.x), sizeof(float), 1, fp);
@@ -398,6 +420,28 @@ bool WriteCameraPos(MQDocument doc, const wchar_t *path)
   fclose(fp);
   return true;
 }
+bool WriteCameraPos(MQDocument doc, const char *path)
+{
+  FILE *fp = fopen(path, "wb");
+  if(fp==NULL)return false;
+  
+  return _WriteCameraPos(doc, fp);
+}
+#if defined _WIN32 || defined __CYGWIN__
+bool WriteCameraPos(MQDocument doc, const wchar_t *path)
+{
+  FILE *fp = _wfopen(path, L"wb");
+  if(fp==NULL)return false;
+  
+  return _WriteCameraPos(doc, fp);
+}
+#endif
+
+#if defined _WIN32 || defined __CYGWIN__
+#define REMOVEFILE _wremove
+#else
+#define REMOVEFILE remove
+#endif
 
 BOOL ShrinkWrap(MQDocument doc)
 {
@@ -419,65 +463,95 @@ BOOL ShrinkWrap(MQDocument doc)
   
   bool bRet = false;
   
+#if defined _WIN32 || defined __CYGWIN__
   std::wstring ppath = GetShrinkWrapPathW();
   std::wstring inpath = MyGetTempFilePathW();
   std::wstring aabbpath = MyGetTempFilePathW();
   std::wstring outpath = MyGetTempFilePathW();
   std::wstring camerapath = MyGetTempFilePathW();
+#else
+  std::string ppath = GetShrinkWrapPathA();
+  std::string inpath = MyGetTempFilePathA();
+  std::string aabbpath = MyGetTempFilePathA();
+  std::string outpath = MyGetTempFilePathA();
+  std::string camerapath = MyGetTempFilePathA();
+#endif
   
   bRet = WriteAABB_ByMQObject(doc, o, aabbpath.c_str());
   if(!bRet)
   {
-    _wremove(aabbpath.c_str());
+    REMOVEFILE(aabbpath.c_str());
     return FALSE;
   }
   
   bRet = WriteMoveVertex_SelectedVertex(doc, inpath.c_str(), guideObjIdx);
   if(!bRet)
   {
-    _wremove(aabbpath.c_str());
-    _wremove(inpath.c_str());
+    REMOVEFILE(aabbpath.c_str());
+    REMOVEFILE(inpath.c_str());
     return FALSE;
   }
 
 /*  MQScene scene = doc->GetScene(0);
-  MQPoint mqcp = scene->GetCameraPosition();*/
-  std::wstring strCameraPos = L"";
-/*  long double xll = mqcp.x;
+  MQPoint mqcp = scene->GetCameraPosition();
+  long double xll = mqcp.x;
   long double yll = mqcp.y;
   long double zll = mqcp.z;*/
+#if defined _WIN32 || defined __CYGWIN__
+  std::wstring strCameraPos = L"";
   if(mode==4)
   {
     WriteCameraPos(doc, camerapath.c_str());
     strCameraPos = L" -c \""+camerapath+L"\" ";
     //strCameraPos = L" -c "+std::to_wstring(xll)+L" "+std::to_wstring(yll)+L" "+std::to_wstring(zll)+L" ";
   }
+#else
+  std::string strCameraPos = "";
+  if(mode==4)
+  {
+    WriteCameraPos(doc, camerapath.c_str());
+    strCameraPos = " -c \""+camerapath+"\" ";
+    //strCameraPos = " -c "+std::to_string(xll)+" "+std::to_string(yll)+" "+std::to_string(zll)+" ";
+  }
+#endif
   
   long long modell = mode;
+#if defined _WIN32 || defined __CYGWIN__
   std::wstring cmd = L"\""+ppath+L"\" --in \""+inpath+L"\" --target \""+aabbpath+L"\" --mode "+std::to_wstring(modell)+strCameraPos+L" --out \""+outpath+L"\"";
+#else
+  std::string cmd = "\""+ppath+"\" --in \""+inpath+"\" --target \""+aabbpath+"\" --mode "+std::to_string(modell)+strCameraPos+" --out \""+outpath+"\"";
+#endif
 
+#if defined _WIN32 || defined __CYGWIN__
   DWORD result = RunCmdW(cmd);
+#else
+  DWORD result = RunCmdA(cmd);
+#endif
   
   if(result!=0)
   {
+#if defined _WIN32 || defined __CYGWIN__
     OutputDebugStringA("ShrinkWrap.exe failed!");
-    _wremove(outpath.c_str());
-    _wremove(inpath.c_str());
-    _wremove(aabbpath.c_str());
-    if(mode==4)_wremove(camerapath.c_str());
+#endif
+    REMOVEFILE(outpath.c_str());
+    REMOVEFILE(inpath.c_str());
+    REMOVEFILE(aabbpath.c_str());
+    if(mode==4)REMOVEFILE(camerapath.c_str());
     return FALSE;
   }
   
   bool ret = ReadMoveVertex(doc, outpath.c_str());
   
-  _wremove(outpath.c_str());
-  _wremove(inpath.c_str());
-  _wremove(aabbpath.c_str());
-  if(mode==4)_wremove(camerapath.c_str());
+  REMOVEFILE(outpath.c_str());
+  REMOVEFILE(inpath.c_str());
+  REMOVEFILE(aabbpath.c_str());
+  if(mode==4)REMOVEFILE(camerapath.c_str());
   
   if(!ret)
   {
+#if defined _WIN32 || defined __CYGWIN__
     OutputDebugStringA("outfile corrupted!!");
+#endif
     return FALSE;
   }
 
